@@ -89,23 +89,37 @@ def calculate_outliers(filepath: str):
     fic = calc_fixed_impact_factor(df)
     # box plot of the variable height
     ax = sns.boxplot(y=fic['fic'])
+
+    q1 = fic['fic'].quantile(0.25)
     q3 = fic['fic'].quantile(0.75)
+    iqr = q3 - q1
+
+    lower_bound = q1 - (1.5 * iqr)
+    upper_bound = q3 + (1.5 * iqr)
+
+    print("q1 = {}".format(q1))
     print("q3 = {}".format(q3))
+    print("iqr = {}".format(iqr))
+    print("upper bound = {}".format(upper_bound))
+
     # notation indicating an outlier
-    outliers = fic[fic['fic'] >= q3]
+    fic1 = fic['fic']
+    fic1.to_excel(join(os.path.dirname(filepath), "fic.xlsx"))
+    outliers = fic[fic['fic'] >= upper_bound]
     outliers.to_excel(join(os.path.dirname(filepath), "outliers.xlsx"))
     count_outlier = 0
     for index, row in fic.iterrows():
-        if row['fic'] >= q3:
+        if row['fic'] >= upper_bound:
             count_outlier = count_outlier + 1
             # print(row['TI'])
             # print("Article:{} is outlier with {}".format(row['TI'], row['fic']))
-            ax.annotate(row['TI'], xy=(0, row['fic']), xytext=(0.05, row['fic']), fontsize=12,
-                        arrowprops=dict(arrowstyle='->', ec='grey', lw=2), bbox=dict(boxstyle="round", fc="0.8"))
+            # ax.annotate(row['TI'], xy=(0, row['fic']), xytext=(0.05, row['fic']), fontsize=12,
+            #             arrowprops=dict(arrowstyle='->', ec='grey', lw=2), bbox=dict(boxstyle="round", fc="0.8"))
 
     # xtick, label, and title
     plt.xticks(fontsize=14)
     plt.xlabel('Mean per year', fontsize=14)
+    plt.ylabel('Article Impact Factor', fontsize=14)
     plt.title('Outliers', fontsize=20)
     plt.show()
     print("Outliers Found: {}".format(count_outlier))
@@ -176,15 +190,27 @@ def fill_manual_jif(input_file):
     # merge_jif(jcr_file=jcr, bibliometry_file=bibliometry)
 
 
+def drop_2021_documents(df_biblio) -> DataFrame:
+    index_names = df_biblio[df_biblio['PY'] == 2021].index
+    # drop these row indexes from dataFrame
+    df_biblio.drop(index_names, inplace=True)
+    return df_biblio
+
+
+def clean_input_data(biblio_filepath: str) -> DataFrame:
+    df_biblio = pd.read_excel(biblio_filepath,
+                              engine='openpyxl', )
+    df_biblio = drop_2021_documents(df_biblio)
+    return df_biblio
+
+
 if __name__ == '__main__':
-    input_folder = '/home/lauro/Documents/ana/doutorado/jcr'
-    output_folder = join(input_folder, 'output')
+    input_folder = '/home/lauro/Documents/ana/doutorado/jcr3'
     # Limpa as linhas desnecessarias que o JCR adiciona ao CSV
-    # clean_csv_from_jcr(input_folder)
-    # merge_csv(output_folder)
-    # read_jcr(output_folder)
-    jcr = join(output_folder, 'consolidated.csv')
-    bibliometry = join(output_folder, 'Database.xlsx')
+    jcr = join(input_folder, 'consolidated.csv')
+    bibliometry = join(input_folder, 'amostra_final.xlsx')
+    # df = clean_input_data(bibliometry)
+    # df.to_excel(bibliometry, index=False)
     # merge_jif(jcr, bibliometry)
     # fill_manual_jif(output_folder)
-    calculate_outliers(join(output_folder, 'output.xlsx'))
+    calculate_outliers(join(input_folder, 'output.xlsx'))
